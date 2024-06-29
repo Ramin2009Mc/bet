@@ -1,7 +1,8 @@
 let frozenTabs = [];
 let freezeInterval;
-const freezeDelay = 3000; // 3 seconds delay before freezing a tab
-const checkInterval = 5000; // 5 seconds interval for freezing tabs
+const freezeDelay = 3000;  // 3 seconds delay before freezing a tab
+const checkInterval = 5000;  // 5 seconds interval for freezing tabs
+const maxTabs = 10;  // Maximum number of tabs allowed
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'startFreezing') {
@@ -14,22 +15,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 function startFreezing(url, amount) {
-    freezeInterval = setInterval(() => {
-        chrome.tabs.create({ url }, tab => {
-            setTimeout(() => {
-                chrome.tabs.update(tab.id, {
-                    url: `chrome://discards/?action=freeze&id=${tab.id}`
-                });
-                frozenTabs.push({ tabId: tab.id, freezeStartTime: Date.now() });
-            }, freezeDelay);
-        });
-    }, checkInterval);
+    if (frozenTabs.length < maxTabs) {
+        freezeInterval = setInterval(() => {
+            chrome.tabs.create({ url }, tab => {
+                setTimeout(() => {
+                    chrome.tabs.update(tab.id, {
+                        url: `chrome://discards/?action=freeze&id=${tab.id}`
+                    }).catch(error => console.error('Failed to update tab:', error));
+                    frozenTabs.push({ tabId: tab.id, freezeStartTime: Date.now() });
+                }, freezeDelay);
+            });
+        }, checkInterval);
+    }
 }
 
 function stopFreezing() {
-    clearInterval(freezeInterval);
+    clearInterval(freeze, Interval);
     frozenTabs.forEach(tab => {
-        chrome.tabs.remove(tab.tabId);
+        chrome.tabs.remove(tab.tabId).catch(error => console.error('Failed to remove tab:', error));
     });
     frozenTabs = [];
 }
@@ -42,7 +45,7 @@ function openFrozenTab() {
     });
 
     if (suitableTab) {
-        chrome.tabs.update(suitableTab.tabId, { active: true });
+        chrome.tabs.update(suitableTab.tabId, { active: true }).catch(error => console.error('Failed to activate tab:', error));
         frozenTabs = frozenTabs.filter(tab => tab.tabId !== suitableTab.tabId);
     }
 }
