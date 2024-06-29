@@ -28,13 +28,16 @@ function startFreezing(url, amount) {
         }, checkInterval);
     }
 }
-
 function stopFreezing() {
-    clearInterval(freeze, Interval);
+    clearInterval(freezeInterval);
+    const now = Date.now();
     frozenTabs.forEach(tab => {
-        chrome.tabs.remove(tab.tabId).catch(error => console.error('Failed to remove tab:', error));
+        const lifeTime = now - tab.freezeStartTime;
+        if (lifeTime > 12000) {  // 12 seconds
+            chrome.tabs.remove(tab.tabId).catch(error => console.error('Failed to remove tab:', error));
+        }
     });
-    frozenTabs = [];
+    frozenTabs = frozenTabs.filter(tab => (Date.now() - tab.freezeStartTime) <= 12000);
 }
 
 function openFrozenTab() {
